@@ -113,7 +113,6 @@ def show_initial_screen():
     tk.Button(button_frame, text="3 متغيرات", font=("Helvetica", 14), command=lambda: [num_vars.set(3), setup_entries(3)]).grid(row=0, column=1, padx=20, pady=10)
     tk.Button(button_frame, text="4 متغيرات", font=("Helvetica", 14), command=lambda: [num_vars.set(4), setup_entries(4)]).grid(row=0, column=2, padx=20, pady=10)
 
-# Create the main window
 root = tk.Tk()
 root.title("Enhanced Equation Solver")
 root.geometry("800x600")  # Set the window size
