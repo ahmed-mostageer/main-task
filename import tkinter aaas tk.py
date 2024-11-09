@@ -2,6 +2,52 @@ import tkinter as tk
 from tkinter import messagebox
 import numpy as np
 
+def gaussian_elimination(A, b):
+    n = len(A)
+    augmented_matrix = np.column_stack((A, b)) 
+    steps = []  
+
+    for i in range(n):
+        max_row = np.argmax(np.abs(augmented_matrix[i:n, i])) + i
+        augmented_matrix[[i, max_row]] = augmented_matrix[[max_row, i]]  
+        steps.append(f"الخطوة {i+1}: تبديل الصف {max_row+1} مع الصف {i+1} لتقليل الخطأ العددي")
+
+        for j in range(i+1, n):
+            factor = augmented_matrix[j, i] / augmented_matrix[i, i]
+            augmented_matrix[j, i:] -= factor * augmented_matrix[i, i:]
+            steps.append(f"الخطوة {i+1}.{j+1}: حذف المتغير x{i+1} من الصف {j+1}")
+            steps.append(f"المصفوفة بعد العملية:\n{augmented_matrix}")
+
+    solution = np.zeros(n)
+    for i in range(n-1, -1, -1):
+        solution[i] = (augmented_matrix[i, -1] - np.dot(augmented_matrix[i, :-1], solution)) / augmented_matrix[i, i]
+        steps.append(f"التعويض العكسي للمتغير x{i+1}: x{i+1} = {solution[i]:.2f}")
+
+    return solution, steps
+
+def gauss_jordan_elimination(A, b):
+    n = len(A)
+    augmented_matrix = np.column_stack((A, b))  
+    steps = [] 
+
+    for i in range(n):
+        augmented_matrix[i] = augmented_matrix[i] / augmented_matrix[i, i]
+        steps.append(f"الخطوة {i+1}: تطبيع الصف {i+1} بحيث يصبح العنصر المحوري 1")
+        steps.append(f"المصفوفة بعد التطبيع:\n{augmented_matrix}")
+        
+        for j in range(n):
+            if i != j:
+                factor = augmented_matrix[j, i]
+                augmented_matrix[j] -= factor * augmented_matrix[i]  # حذف باقي العناصر في العمود
+                steps.append(f"الخطوة {i+1}.{j+1}: حذف المتغير x{i+1} من الصف {j+1}")
+                steps.append(f"المصفوفة بعد العملية:\n{augmented_matrix}")
+    
+    solution = augmented_matrix[:, -1]
+    for i in range(n):
+        steps.append(f"الحل للمتغير x{i+1}: {solution[i]:.2f}")
+
+    return solution, steps
+
 def solve_gauss():
     try:
         if num_vars.get() == 2:
@@ -26,10 +72,10 @@ def solve_gauss():
             ])
             results = np.array([float(b1_entry.get()), float(b2_entry.get()), float(b3_entry.get()), float(b4_entry.get())])
 
-        solution = np.linalg.solve(coefficients, results)
-        show_solution(solution, "Gaussian Elimination")
+        solution, steps = gaussian_elimination(coefficients, results)
+        show_solution(solution, "الحذف الجاوسي", steps)
     except Exception as e:
-        messagebox.showerror("Error", f"An error occurred: {e}")
+        messagebox.showerror("خطأ", f"حدث خطأ: {e}")
 
 def solve_gauss_jordan():
     try:
@@ -55,21 +101,55 @@ def solve_gauss_jordan():
             ])
             results = np.array([float(b1_entry.get()), float(b2_entry.get()), float(b3_entry.get()), float(b4_entry.get())])
 
-        augmented_matrix = np.column_stack((coefficients, results))
-        row_reduced_form = np.linalg.inv(coefficients).dot(results)
-        show_solution(row_reduced_form, "Gauss-Jordan Elimination")
+        solution, steps = gauss_jordan_elimination(coefficients, results)
+        show_solution(solution, "الحذف الجاوسي-جوردان", steps)
     except Exception as e:
-        messagebox.showerror("Error", f"An error occurred: {e}")
+        messagebox.showerror("خطأ", f"حدث خطأ: {e}")
 
-def show_solution(solution, method):
-    solution_str = f"{method} Solution:\n" + "\n".join([f"x{i+1} = {value:.2f}" for i, value in enumerate(solution)])
-    solution_label.config(text=solution_str)
+def show_solution(solution, method, steps):
+    result_window = tk.Toplevel(root)
+    result_window.title(f"نتائج {method}")
+    result_window.geometry("600x600")
+
+    canvas = tk.Canvas(result_window)
+    scrollbar = tk.Scrollbar(result_window, orient="vertical", command=canvas.yview)
+    steps_frame = tk.Frame(canvas)
+    
+    canvas.configure(yscrollcommand=scrollbar.set)
+    scrollbar.pack(side="right", fill="y")
+    canvas.pack(side="left", fill="both", expand=True)
+    canvas.create_window((0, 0), window=steps_frame, anchor="nw")
+    
+    title_label = tk.Label(steps_frame, text=f"نتائج {method}", font=("Helvetica", 16, "bold"))
+    title_label.grid(row=0, columnspan=2, pady=10)
+
+    row = 1
+    for step in steps:
+        step_label = tk.Label(steps_frame, text=step, font=("Helvetica", 12), anchor="w", justify="left")
+        step_label.grid(row=row, column=0, sticky="w", pady=2)
+        row += 1
+
+    result_label = tk.Label(steps_frame, text="النتيجة النهائية:\n", font=("Helvetica", 14, "bold"))
+    result_label.grid(row=row, columnspan=2, pady=5)
+    row += 1
+
+    for i, value in enumerate(solution):
+        result_text = f"x{i+1} = {value:.2f}"
+        result_label = tk.Label(steps_frame, text=result_text, font=("Helvetica", 12))
+        result_label.grid(row=row, column=0, sticky="w", pady=2)
+        row += 1
+
+    steps_frame.update_idletasks()
+    canvas.config(scrollregion=canvas.bbox("all"))
+
+    close_btn = tk.Button(result_window, text="إغلاق", command=result_window.destroy, bg="red", font=("Helvetica", 14, "bold"), fg="white")
+    close_btn.pack(pady=20)
 
 def setup_entries(num):
     for widget in frame1.winfo_children():
         widget.destroy()
 
-    title_label = tk.Label(frame1, text="Enhanced Equation Solver", font=("Helvetica", 18, "bold"))
+    title_label = tk.Label(frame1, text="حل المعادلات المحسّن", font=("Helvetica", 18, "bold"))
     title_label.grid(row=0, columnspan=num*2, pady=20)
 
     for i in range(num):
@@ -83,15 +163,14 @@ def setup_entries(num):
         globals()[f'b{i+1}_entry'] = tk.Entry(frame1, width=8, font=("Helvetica", 14))
         globals()[f'b{i+1}_entry'].grid(row=num+1, column=2*i+1, padx=10, pady=10)
 
-    solve_gauss_btn = tk.Button(frame1, text="Solve with Gauss", command=solve_gauss, bg="lightblue", font=("Helvetica", 14, "bold"))
+    solve_gauss_btn = tk.Button(frame1, text="حل باستخدام الحذف الجاوسي", command=solve_gauss, bg="lightblue", font=("Helvetica", 14, "bold"))
     solve_gauss_btn.grid(row=num+2, column=0, columnspan=num, pady=20, sticky="ew")
 
-    solve_gauss_jordan_btn = tk.Button(frame1, text="Solve with Gauss-Jordan", command=solve_gauss_jordan, bg="lightgreen", font=("Helvetica", 14, "bold"))
+    solve_gauss_jordan_btn = tk.Button(frame1, text="حل باستخدام الحذف الجاوسي-جوردان", command=solve_gauss_jordan, bg="lightgreen", font=("Helvetica", 14, "bold"))
     solve_gauss_jordan_btn.grid(row=num+2, column=num, columnspan=num, pady=20, sticky="ew")
 
-    global solution_label
-    solution_label = tk.Label(frame1, text="", font=("Helvetica", 16))
-    solution_label.grid(row=num+3, columnspan=num*2, pady=20)
+    back_btn = tk.Button(frame1, text="رجوع", command=show_initial_screen, bg="red", font=("Helvetica", 14, "bold"), fg="white")
+    back_btn.grid(row=num+3, column=0, columnspan=num*2, pady=10, sticky="ew")
 
 def show_initial_screen():
     for widget in frame1.winfo_children():
@@ -111,8 +190,8 @@ def show_initial_screen():
     tk.Button(button_frame, text="4 متغيرات", font=("Helvetica", 14), command=lambda: [num_vars.set(4), setup_entries(4)]).grid(row=0, column=2, padx=20, pady=10)
 
 root = tk.Tk()
-root.title("Enhanced Equation Solver")
-root.geometry("800x600")  # Set the window size
+root.title("حل المعادلات المحسّن")
+root.geometry("800x600")
 
 num_vars = tk.IntVar()
 
